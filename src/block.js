@@ -41,6 +41,7 @@ class Block {
             // Save in auxiliary variable the current block hash
             let originalHash = self.hash;                                
             // Recalculate the hash of the Block
+            // TODO: see how can we use the spread operator https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
             var block = JSON.parse(JSON.stringify(self))
             block.hash = null;
             let newHash = SHA256(JSON.stringify(block)).toString();

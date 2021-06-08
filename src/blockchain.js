@@ -81,6 +81,7 @@ class Blockchain {
 
             if(errors.length > 0)
             {
+                self.chain.pop();
                 reject("this block makes the chain invalid")
             }
 
@@ -124,12 +125,12 @@ class Blockchain {
         return new Promise(async (resolve, reject) => {
             
             //Get the time from the message sent
-            let time = parseInt(message.split(':')[1]);
+            let messageTime = parseInt(message.split(':')[1]);
             //Get the current time in seconds
             let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
-            // Check if the time elapsed is less than 5 minutes (5*60000 = 5 minutes to miliseconds)
-            let timeDifference = currentTime-time;
-            if(timeDifference > 5*60)
+            // Check if the time elapsed is bigger than 5min
+            let timeDifference = Math.floor((currentTime - messageTime) / 60);
+            if(timeDifference > 5)
             {
                 reject('too late')
             }
@@ -255,6 +256,11 @@ class Blockchain {
                 block = nextblock;
 
             } while(block != null)
+
+            if(errorLog.length > 0)
+            {
+                reject(errorLog);
+            }
 
             resolve(errorLog);
         });
