@@ -77,6 +77,13 @@ class Blockchain {
             // add block to chain
             self.chain.push(block);
 
+            let errors = await this.validateChain();
+
+            if(errors.length > 0)
+            {
+                reject("this block makes the chain invalid")
+            }
+
             resolve(block);
         });
     }
@@ -118,10 +125,11 @@ class Blockchain {
             
             //Get the time from the message sent
             let time = parseInt(message.split(':')[1]);
-            //Get the current time
+            //Get the current time in seconds
             let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
             // Check if the time elapsed is less than 5 minutes (5*60000 = 5 minutes to miliseconds)
-            if((currentTime-time) > 5*60000)
+            let timeDifference = currentTime-time;
+            if(timeDifference > 5*60)
             {
                 reject('too late')
             }
@@ -211,34 +219,46 @@ class Blockchain {
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
 
-            let head = self.chain[self.chain.length-1];
+            let block = self.chain[self.chain.length-1];
 
-            self._validateChain(head, errorLog, self);
+            do {
+                let result = await block.validate();
+                // block tampered check
+                if(!result) {
+                    errorLog.push(`block ${block.hash} has been tampered`);
+                    break;
+                }
+                    
+                //reached tail check
+                if(block.height == 0 && block.previousBlockHash == null) 
+                    break;
+
+                //reached tail check
+                if(block.height == 0 && block.previousBlockHash != null) {
+                    errorLog.push(`Genesis block is inconsistent`);
+                    break;
+                }
+                if(block.height > 0 && block.previousBlockHash == null) {
+                    errorLog.push(`Chain is broken at ${block.hash}`);
+                    break;
+                }
+
+                //TODO: validate that two users have claimed the same star
+                
+                let nextblock = self.chain.filter(b=>b.hash == block.previousBlockHash)[0];
+
+                if(!nextblock){
+                    errorLog.push(`next block with hash (${nextblock.hash}) not found. chain is broken`);
+                    break;
+                }
+
+                block = nextblock;
+
+            } while(block != null)
+
+            resolve(errorLog);
         });
     }
-
-    _validateChain(block, errorLog, self){
-        return new Promise(async (resolve, reject) => {
-            let result = await block.validate();
-            if(!result)
-            {
-                errorLog.push(`block ${block.hash} has been tampered`);
-            }
-
-            if(block.previousBlockHash == null && block.height != 0) {
-                errorLog.push(`chain is broken at ${block.hash}`);
-            }
-            
-            let nextblock = self.chain.filter(b=>b.hash == block.hash)[0];
-
-            if(!nextblock){
-                errorLog.push(`block not found ${nextblock.hash}. chain is broken`);
-            }
-
-            await self._validateChain(nextblock, errorLog, self);
-        });
-    }
-
 }
 
 module.exports.Blockchain = Blockchain;   
